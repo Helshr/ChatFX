@@ -1,0 +1,59 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chatfx-be-service
+  namespace: application
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/initialScale: "1"
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/target: "60"             # 每个 Pod 目标并发数
+        networking.knative.dev/http-protocol: "disabled"
+      labels:
+        insert.containerd: "true"
+    spec:
+      timeoutSeconds: 120                   
+      responseStartTimeoutSeconds: 60
+      terminationGracePeriodSeconds: 30
+      containers:
+        - image: dockerhub.codyer.cloud/codyer_cn/chatfx-be:0.0.1
+          imagePullPolicy: Always
+          name: chatfx-be
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: env-file
+              mountPath: /app/.env
+              subPath: ENV
+          resources:
+            requests:
+              cpu: "1000m"   
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"  
+              memory: "4Gi" 
+      volumes:
+        - name: env-file
+          secret:
+            secretName: chatfx-secret
+      imagePullSecrets:
+      - name: codyer-dockerhub
+---
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: trigger-here-now-be-service
+  namespace: application
+spec:
+  broker: broker-coderun-dev
+  filter:
+    attributes:
+      type: chatfx-be-service
+  subscriber:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: chatfx-be-service
