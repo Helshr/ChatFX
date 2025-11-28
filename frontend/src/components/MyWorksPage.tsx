@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, LogOut } from 'lucide-react';
+import { Home, Send } from 'lucide-react';
 import VideoCard from './VideoCard';
 import DetailModal from './DetailModal';
+import LoginModal from './LoginModal';
+import Logo from './Logo';
+import { useIsLoggedIn, useUserStore } from '../store/userStore';
+import { logout as apiLogout } from '../services/api';
 
 const mockUserVideos = [
   {
@@ -38,88 +42,130 @@ const mockUserVideos = [
   },
 ];
 
-interface MyWorksPageProps {
-  onLogout: () => void;
-}
-
-export default function MyWorksPage({ onLogout }: MyWorksPageProps) {
+export default function MyWorksPage() {
   const navigate = useNavigate();
+  const isLoggedIn = useIsLoggedIn();
+  const logout = useUserStore((state) => state.logout);
   const [videos, setVideos] = useState(mockUserVideos);
   const [selectedVideo, setSelectedVideo] = useState<typeof mockUserVideos[0] | null>(null);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [prompt, setPrompt] = useState('');
+
+  useEffect(() => {
+    // 如果未登录，显示登录弹窗
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+    }
+  }, [isLoggedIn]);
 
   const handleDelete = (id: string) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
   };
 
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
+  const handleGenerate = () => {
+    if (prompt.trim()) {
+      navigate('/generating', { state: { prompt } });
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && prompt.trim()) {
+      handleGenerate();
+    }
+  };
+
+  const handleLogin = () => {
+    setShowLoginModal(false);
   };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="px-12 py-6 flex items-center justify-between border-b border-gray-100">
+      <header className="px-12 py-6 flex items-center justify-between">
+        <Logo />
         <button 
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl hover:bg-gray-50 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
-          <span>返回</span>
+          <Home className="w-5 h-5" />
+          <span>首页</span>
         </button>
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-12 py-12">
+      {/* Hero Section - Same as HomePage */}
+      <div className="max-w-5xl mx-auto px-12 pt-24 pb-16">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center"
         >
-          <h1 className="mb-12">我的作品</h1>
+          <h1 className="mb-12" style={{ fontSize: '68px', fontWeight: 'bold' }}>
+            一句话生成你的专属动画
+          </h1>
 
-          {/* Video Grid */}
-          {videos.length > 0 ? (
-            <div className="grid grid-cols-3 gap-8">
-              {videos.map((video, index) => (
-                <motion.div
-                  key={video.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * index, duration: 0.5 }}
-                >
-                  <VideoCard
-                    video={video}
-                    onClick={() => setSelectedVideo(video)}
-                    showActions={true}
-                    onDelete={() => handleDelete(video.id)}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-24">
-              <p className="text-gray-400 text-lg">还没有作品，去创作第一个吧！</p>
-              <button
-                onClick={() => navigate('/')}
-                className="mt-6 px-8 py-4 bg-[#FF6B6B] text-white rounded-2xl hover:bg-[#FF5252] transition-colors"
-              >
-                开始创作
-              </button>
-            </div>
-          )}
+          {/* Input Area */}
+          <div className="relative max-w-3xl mx-auto">
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="描述你想要的动画效果，例如：科技感的粒子流动动画..."
+              className="w-full px-8 py-6 pr-20 bg-gray-50 border-none rounded-3xl focus:outline-none focus:ring-2 focus:ring-[#FF6B6B]"
+              style={{ fontSize: '18px' }}
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={!prompt.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-4 bg-[#FF6B6B] text-white rounded-2xl hover:bg-[#FF5252] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
         </motion.div>
       </div>
 
-      {/* Logout Button */}
-      <div className="fixed bottom-8 right-8">
-        <button
-          onClick={() => setShowLogoutConfirm(true)}
-          className="flex items-center gap-2 px-6 py-3 text-gray-500 hover:text-gray-700 rounded-2xl hover:bg-gray-50 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>退出登录</span>
-        </button>
+      {/* Video Gallery */}
+      <div className="max-w-7xl mx-auto px-12 py-8">
+        {/* Section Title */}
+        <h2 className="mb-8" style={{ fontWeight: 'bold' }}>我的作品</h2>
+
+        {/* Video Grid */}
+        {videos.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="grid grid-cols-3 gap-8"
+          >
+            {videos.map((video, index) => (
+              <motion.div
+                key={video.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * index, duration: 0.5 }}
+              >
+                <VideoCard
+                  video={video}
+                  onClick={() => setSelectedVideo(video)}
+                  showActions={true}
+                  onDelete={() => handleDelete(video.id)}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center py-24">
+            <p className="text-gray-400 text-lg">还没有作品，去创作第一个吧！</p>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-6 px-8 py-4 bg-[#FF6B6B] text-white rounded-2xl hover:bg-[#FF5252] transition-colors"
+            >
+              开始创作
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
@@ -130,40 +176,15 @@ export default function MyWorksPage({ onLogout }: MyWorksPageProps) {
         />
       )}
 
-      {/* Logout Confirmation */}
-      {showLogoutConfirm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-8"
-          onClick={() => setShowLogoutConfirm(false)}
-        >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative bg-white rounded-[40px] p-12 max-w-md w-full text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-6">确认退出登录？</h3>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-4 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 py-4 bg-[#FF6B6B] text-white rounded-2xl hover:bg-[#FF5252] transition-colors"
-              >
-                退出
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          navigate('/');
+        }}
+        onLogin={handleLogin}
+      />
     </div>
   );
 }

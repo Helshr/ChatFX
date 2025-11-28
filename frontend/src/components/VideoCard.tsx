@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Copy, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface VideoCardProps {
   video: {
@@ -17,9 +17,10 @@ interface VideoCardProps {
 export default function VideoCard({ video, onClick, showActions = false, onDelete }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(video.prompt);
+    // Navigate to edit or open edit modal
+    console.log('Edit video:', video.id);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -53,10 +54,10 @@ export default function VideoCard({ video, onClick, showActions = false, onDelet
           className="absolute top-4 right-4 flex gap-2 z-10"
         >
           <button
-            onClick={handleCopy}
+            onClick={handleEdit}
             className="p-2 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/30 transition-colors"
           >
-            <Copy className="w-4 h-4 text-white" />
+            <Pencil className="w-4 h-4 text-white" />
           </button>
           <button
             onClick={handleDelete}

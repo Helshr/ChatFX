@@ -4,6 +4,9 @@ import { motion } from 'motion/react';
 import { Send, User } from 'lucide-react';
 import VideoCard from './VideoCard';
 import DetailModal from './DetailModal';
+import LoginModal from './LoginModal';
+import Logo from './Logo';
+import { useIsLoggedIn } from '../store/userStore';
 
 const mockVideos = [
   {
@@ -64,11 +67,17 @@ const mockVideos = [
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const isLoggedIn = useIsLoggedIn();
   const [prompt, setPrompt] = useState('');
   const [selectedVideo, setSelectedVideo] = useState<typeof mockVideos[0] | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleGenerate = () => {
     if (prompt.trim()) {
+      if (!isLoggedIn) {
+        setShowLoginModal(true);
+        return;
+      }
       navigate('/generating', { state: { prompt } });
     }
   };
@@ -79,18 +88,48 @@ export default function HomePage() {
     }
   };
 
+  const handleCardClick = (video: typeof mockVideos[0]) => {
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+      return;
+    }
+    setSelectedVideo(video);
+  };
+
+  const handleMyWorksClick = () => {
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+      return;
+    }
+    navigate('/my-works');
+  };
+
+  const handleLogin = () => {
+    // 登录成功后关闭弹窗
+    setShowLoginModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="px-12 py-6 flex items-center justify-between">
-        <div className="text-2xl tracking-tight text-gray-900">MG Studio</div>
-        <button 
-          onClick={() => navigate('/my-works')}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl hover:bg-gray-50 transition-colors"
-        >
-          <User className="w-5 h-5" />
-          <span>我的</span>
-        </button>
+          <Logo />
+          {!isLoggedIn ? (
+            <button 
+              onClick={() => setShowLoginModal(true)}
+              className="px-6 py-3 rounded-2xl hover:bg-gray-50 transition-colors"
+            >
+              登录 / 注册
+            </button>
+          ) : (
+            <button 
+              onClick={handleMyWorksClick}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl hover:bg-gray-50 transition-colors"
+            >
+              <User className="w-5 h-5" />
+              <span>我的</span>
+            </button>
+          )}
       </header>
 
       {/* Hero Section */}
@@ -101,7 +140,7 @@ export default function HomePage() {
           transition={{ duration: 0.8 }}
           className="text-center"
         >
-          <h1 className="mb-12">
+          <h1 className="mb-12" style={{ fontSize: '68px', fontWeight: 'bold' }}>
             一句话生成你的专属动画
           </h1>
 
@@ -113,7 +152,8 @@ export default function HomePage() {
               onChange={(e) => setPrompt(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="描述你想要的动画效果，例如：科技感的粒子流动动画..."
-              className="w-full px-8 py-6 pr-20 bg-gray-50 border-none rounded-3xl focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] text-lg"
+              className="w-full px-8 py-6 pr-20 bg-gray-50 border-none rounded-3xl focus:outline-none focus:ring-2 focus:ring-[#FF6B6B]"
+              style={{ fontSize: '18px' }}
             />
             <button
               onClick={handleGenerate}
@@ -128,6 +168,9 @@ export default function HomePage() {
 
       {/* Video Gallery */}
       <div className="max-w-7xl mx-auto px-12 py-8">
+        {/* Section Title */}
+        <h2 className="mb-8" style={{ fontWeight: 'bold' }}>热门作品</h2>
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -143,18 +186,11 @@ export default function HomePage() {
             >
               <VideoCard
                 video={video}
-                onClick={() => setSelectedVideo(video)}
+                onClick={() => handleCardClick(video)}
               />
             </motion.div>
           ))}
         </motion.div>
-
-        {/* More Button */}
-        <div className="text-center mt-12">
-          <button className="text-gray-400 hover:text-gray-600 transition-colors">
-            更多作品
-          </button>
-        </div>
       </div>
 
       {/* Detail Modal */}
@@ -164,6 +200,13 @@ export default function HomePage() {
           onClose={() => setSelectedVideo(null)}
         />
       )}
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={handleLogin}
+      />
     </div>
   );
 }

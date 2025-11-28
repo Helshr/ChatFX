@@ -54,9 +54,6 @@ class LoginResponse(BaseModel):
     token: str
     signature: str
     phone: Optional[str] = None
-    environment: str
-    remind_before_minutes: int
-    voice: str
     nickname: Optional[str] = None
     message: str
 
@@ -159,14 +156,14 @@ async def login(request: LoginRequest):
         # 手机号登录
         else:
             # 验证验证码
-            logging.info(f"验证验证码: phone={request.phone[:8]}..., code={request.code}, environment={request.environment}")
+            logging.info(f"验证验证码: phone={request.phone[:8]}..., code={request.code}")
             is_valid = await validate_code(request.phone, request.code)
             logging.info(f"验证码验证结果: {is_valid}")
             
             if not is_valid:
                 raise HTTPException(status_code=400, detail="验证码错误或已过期")
             
-            # 查找用户（根据phone_hash+environment）
+            # 查找用户（根据phone）
             logging.info(f"查找用户: phone={request.phone}")
             user = await fetch_one(
                 select(User).where(User.phone == request.phone)
@@ -191,13 +188,9 @@ async def login(request: LoginRequest):
             
             # 准备用户数据
             user_values = {
-                "environment": request.environment,
                 "token": new_token,
-                "apple_voip_token": request.apple_voip_token,
-                "apple_apn_token": request.apple_apn_token
+                "phone": request.phone
             }
-            
-            user_values["phone"] = request.phone
             logging.info(f"创建新用户(手机号登录): phone={request.phone}")
             
             # 先创建用户以获取user_id
@@ -208,10 +201,18 @@ async def login(request: LoginRequest):
             logging.info(f"新用户创建成功: user_id={user_id}")
             token_to_use = new_token
         logging.info(f"登录成功: user_id={user_id}, token={token_to_use}")
+        
+        # 获取最新的用户信息
+        updated_user = await fetch_one(
+            select(User).where(User.id == user_id)
+        )
+        
         return LoginResponse(
             user_id=user_id,
             token=token_to_use,
+            signature=updated_user.get('signature', ''),
             phone=phone_for_response,
+            nickname=updated_user.get('nickname'),
             message="登录成功"
         )
     except HTTPException:
